@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JavaScript Camera</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.8.2/css/bulma.min.css">
+    <script defer src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <style>
+        .mobileShow {
+            display: none;
+        }
+        /* Smartphone Portrait and Landscape */
+        
+        body>section>div>div>div.column.is-four-fifths {
+            width: 45%;
+        }
+        
+        @media only screen and (min-device-width: 320px) and (max-device-width: 600px) {
+            .mobileShow {
+                display: inline;
+            }
+            .mobileHide {
+                display: none;
+            }
+            #pictureFromCamera {
+                width: 400px;
+                height: 400px;
+                margin-top: 50px;
+            }
+            #cameraFileInput img {
+                height: 70px;
+                width: 70px;
+                margin: 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <section class="section mobileHide">
+        <div class="container">
+            <div class="columns">
+                <div class="column is-four-fifths">
+                    <h1 class="title">
+                        JavaScript Camera
+                    </h1>
+                    <video autoplay id="video"></video>
+                    <button class="button is-hidden" id="btnPlay">
+            <span class="icon is-small">
+              <i class="fas fa-play"></i>
+            </span>
+          </button>
+                    <button class="button" id="btnPause">
+            <span class="icon is-small">
+              <i class="fas fa-pause"></i>
+            </span>
+          </button>
+                    <button class="button is-success" id="btnScreenshot">
+            <span class="icon is-small">
+              <i class="fas fa-camera"></i>
+            </span>
+          </button>
+                    <button class="button" id="btnChangeCamera">
+            <span class="icon">
+              <i class="fas fa-sync-alt"></i>
+            </span>
+            <span>Switch camera</span>
+          </button>
+                </div>
+                <div class="column">
+                    <h2 class="title">Screenshots</h2>
+                    <div id="screenshots"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <div id='mobileView' class='mobileShow'>
+        <p>Take a photo</p>
+        <p id="supported"></p>
+        <input id="cameraFileInput" type="file" accept="image/*" capture>
+        <span id="output"></span>
+    </div>
+
+    <canvas class="is-hidden" id="canvas"></canvas>
+</body>
+
+</html>
+
+<script>
+    const isMobile = navigator.userAgentData.mobile; //resolves true/false
+    if (!isMobile) {
+        (function() {
+
+            if (!"mediaDevices" in navigator ||
+                !"getUserMedia" in navigator.mediaDevices
+            ) {
+                alert("Camera API is not available in your browser");
+                return;
+            }
+
+            // get page elements
+            const video = document.querySelector("#video");
+            const btnPlay = document.querySelector("#btnPlay");
+            const btnPause = document.querySelector("#btnPause");
+            const btnScreenshot = document.querySelector("#btnScreenshot");
+            const btnChangeCamera = document.querySelector("#btnChangeCamera");
+            const screenshotsContainer = document.querySelector("#screenshots");
+            const canvas = document.querySelector("#canvas");
+            const devicesSelect = document.querySelector("#devicesSelect");
+            canvas.getContext("2d").drawImage(video, 0, 0);
+
+
+            // video constraints
+            const constraints = {
+                video: {
+                    width: {
+                        min: 720,
+                        ideal: 1400,
+                        max: 1900,
+                    },
+                    height: {
+                        min: 450,
+                        ideal: 720,
+                        max: 920,
+                    },
+                },
+            };
+
+            // use front face camera
+            let useFrontCamera = true;
+
+            // current video stream
+            let videoStream;
+
+            // handle events
+            // play
+            btnPlay.addEventListener("click", function() {
+                video.play();
+                btnPlay.classList.add("is-hidden");
+                btnPause.classList.remove("is-hidden");
+            });
+
+            // pause
+            btnPause.addEventListener("click", function() {
+                video.pause();
+                btnPause.classList.add("is-hidden");
+                btnPlay.classList.remove("is-hidden");
+            });
+
+            // take screenshot
+            btnScreenshot.addEventListener("click", function() {
+                const img = document.createElement("img");
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                canvas.getContext("2d").drawImage(video, 0, 0);
+                img.src = canvas.toDataURL("image/png");
+                screenshotsContainer.prepend(img);
+                var imageData = canvas.toDataURL("image/png");
+
+                var link = document.createElement('a');
+                link.href = imageData;
+                link.download = 'Download.jpg';
+                document.body.appendChild(link);
+                link.click();
+
+            });
+
+            // switch camera
+            btnChangeCamera.addEventListener("click", function() {
+                useFrontCamera = !useFrontCamera;
+                initializeCamera();
+            });
+
+
+            // stop video stream
+            function stopVideoStream() {
+                if (videoStream) {
+                    videoStream.getTracks().forEach((track) => {
+                        track.stop();
+                    });
+                }
+            }
+
+            // initialize
+            async function initializeCamera() {
+                stopVideoStream();
+                constraints.video.facingMode = useFrontCamera ? "user" : "environment";
+
+                try {
+                    videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    video.srcObject = videoStream;
+                } catch (err) {
+                    alert("Could not access the camera" + err);
+                }
+            }
+
+            initializeCamera();
+        })();
+    }
+
+    function supported(elem, attribute) {
+        var i = document.createElement(elem);
+        i.setAttribute(attribute, true);
+        return !!i[attribute];
+    }
+
+    document.querySelector('#supported').innerHTML =
+        'It appears <strong>@capture is ' + (supported('input', 'capture') ? 'supported' : 'not supported') +
+        '</strong>, <strong>@accept is ' + (supported('input', 'accept') ? 'supported' : 'not supported') +
+        '</strong>, and <strong>@download is ' + (supported('a', 'download') ? 'supported' : 'not supported') + '</strong>.';
+
+    var picker = document.querySelector('#cameraFileInput'),
+        output = document.querySelector('#output'),
+        a = document.createElement('a');
+
+    picker.onchange = function() {
+        // turn the captured image into a blob
+        var blob = URL.createObjectURL(picker.files[0]);
+
+        // create a download link that references the blob
+        createSaveLink(blob);
+
+        // if @download is supported ...
+        if (supported('a', 'download')) {
+            // trigger a click event programmatically on the 'Save the File' link
+            a.click();
+        }
+    };
+
+    function createSaveLink(blob) {
+        // set the filename
+        a.download = picker.value.split('\\').pop();
+
+        // reference the captured blob
+        a.href = blob;
+
+        a.textContent = 'Save the File';
+
+        output.appendChild(a);
+        output.style.visibility = 'visible';
+
+        // remove the link when clicked
+        a.onclick = function() {
+            removeSaveLink();
+        };
+    }
+
+    function removeSaveLink() {
+        output.style.visibility = 'hidden';
+
+        // add a small delay for the revokeObjectURL to work property
+        setTimeout(function() {
+            URL.revokeObjectURL(a.href);
+            output.removeChild(a);
+        }, 1500);
+    }
+</script>
